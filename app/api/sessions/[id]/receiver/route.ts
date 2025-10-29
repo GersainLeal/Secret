@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getReceiverFor, getSession } from "@/lib/store"
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const dynamic = "force-dynamic"
+
+export async function GET(req: NextRequest, ctx?: { params?: { id?: string } }) {
   const { searchParams } = new URL(req.url)
   const personId = searchParams.get("personId")
   if (!personId) return NextResponse.json({ error: "personId required" }, { status: 400 })
-
-  const { id } = await params
-  const session = getSession(id)
+  const id = ctx?.params?.id ?? new URL(req.url).pathname.split("/").slice(-2, -1)[0] ?? ""
+  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 })
+  const session = await getSession(id)
   if (!session) return NextResponse.json({ error: "Not Found" }, { status: 404 })
 
   // Enforce that the participant must have claimed their spot before revealing
@@ -18,7 +20,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   // If assignments are not yet ready (edge case), indicate pending
   if (!session.isDrawComplete) return NextResponse.json({ status: "pending" }, { status: 202 })
 
-  const r = getReceiverFor(id, personId)
+  const r = await getReceiverFor(id, personId)
   if (!r) return NextResponse.json({ error: "No assignment" }, { status: 404 })
 
   const receiver = session.people.find((p) => p.id === r.receiverId)

@@ -28,6 +28,14 @@ Notas importantes:
 2. Acepta crear la base gratis y añadir variables de entorno.
 3. Vuelve a desplegar. No necesitas código extra: la app detecta KV automáticamente.
 
+#### Si ves “Sesión no encontrada” al abrir el enlace
+- En Vercel, sin KV, los datos se guardan solo en memoria de la función que creó la sesión. Al abrir el enlace, otra función diferente intenta leer y no encuentra nada → aparece el mensaje.
+- Solución: habilita Vercel KV como arriba. Verifica que existan estas variables en Project Settings → Environment Variables:
+   - `KV_REST_API_URL`
+   - `KV_REST_API_TOKEN`
+   - `KV_URL` (opcional)
+- Con eso, las sesiones se persisten y los enlaces funcionan entre dispositivos y después de un redeploy.
+
 ### Despliegue desde tu PC (CLI)
 Si prefieres desplegar sin GitHub, usa la CLI de Vercel.
 
@@ -63,6 +71,7 @@ La CLI te devolverá la URL del sitio.
 - Build falla con Next/React muy nuevos: asegúrate de usar Node 18 o 20, y que el bloque `scripts` tenga `build`, `dev`, `start`.
 - Estilos/Tailwind no aplican: verifica que `globals.css` esté importado en `app/layout.tsx` y que Tailwind esté configurado (ya lo está en este repo).
 - Rutas de API dan 404: confirma que el árbol es `app/api/.../route.ts` y que exportas `GET/POST` correctamente.
+- Error “Sesión no encontrada”: desde 29/10/2025 las rutas `/api/sessions/[id]` y derivadas fueron corregidas para esperar los datos del store y no cachear respuestas. Aun así, necesitas KV para persistencia en Vercel.
 
 ## Comandos útiles (local)
 ```powershell

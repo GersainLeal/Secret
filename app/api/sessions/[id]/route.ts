@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/store"
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
-  const session = getSession(id)
+// Ensure this route is always dynamic (no caching in production)
+export const dynamic = "force-dynamic"
+
+// Fetch public session state
+export async function GET(req: NextRequest, ctx?: { params?: { id?: string } }) {
+  const id = ctx?.params?.id ?? new URL(req.url).pathname.split("/").pop() ?? ""
+  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 })
+  const session = await getSession(id)
   if (!session) return NextResponse.json({ error: "Not Found" }, { status: 404 })
 
   // Public state (don’t expose assignments here)
