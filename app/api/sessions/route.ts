@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 })
     }
 
-    const session = createSession({
+    const session = await createSession({
       houses: body.houses,
       people: body.people as Person[],
     })

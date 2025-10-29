@@ -1,4 +1,13 @@
 import { randomBytes } from "crypto"
+// Use Vercel KV (free tier) if environment variables are present. Fallback to in-memory in dev.
+let kv: any = null
+try {
+  // Lazy import so local dev without the package still works until installed
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  kv = require("@vercel/kv").kv
+} catch {
+  kv = null
+}
 
 export type Person = {
   id: string
@@ -26,18 +35,26 @@ export type Session = {
   createdAt: number
 }
 
-// In-memory store (ephemeral). For production, replace with a DB (e.g., Prisma + SQLite/Postgres).
-// In dev, preserve across HMR by attaching to globalThis.
+// In-memory store (ephemeral). Used when KV is not configured.
 const globalAny = globalThis as unknown as { __amigoSessions?: Map<string, Session> }
 const sessions: Map<string, Session> = globalAny.__amigoSessions ?? new Map<string, Session>()
 globalAny.__amigoSessions = sessions
+
+function kvAvailable(): boolean {
+  // Vercel KV uses KV_REST_API_URL/KV_REST_API_TOKEN or KV_URL; Upstash naming also supported
+  return Boolean(
+    kv && (process.env.KV_REST_API_URL || process.env.KV_URL || process.env.UPSTASH_REDIS_REST_URL),
+  )
+}
+
+const kvKey = (id: string) => `session:${id}`
 
 export function generateSessionId(): string {
   // 12 bytes -> 24 hex chars
   return randomBytes(12).toString("hex")
 }
 
-export function createSession(input: { houses: House[]; people: Omit<Person, "claimed">[] }): Session {
+export async function createSession(input: { houses: House[]; people: Omit<Person, "claimed">[] }): Promise<Session> {
   const id = generateSessionId()
   const people: Person[] = input.people.map((p) => ({ ...p, claimed: false }))
   // Precompute assignments so each participante pueda ver su resultado al instante
@@ -51,20 +68,35 @@ export function createSession(input: { houses: House[]; people: Omit<Person, "cl
     isDrawComplete: precomputed.length > 0,
     createdAt: Date.now(),
   }
-  sessions.set(id, session)
+  if (kvAvailable()) {
+    await kv.set(kvKey(id), session)
+  } else {
+    sessions.set(id, session)
+  }
   return session
 }
 
-export function getSession(id: string): Session | undefined {
+export async function getSession(id: string): Promise<Session | undefined> {
+  if (kvAvailable()) {
+    const s = (await kv.get(kvKey(id))) as Session | null
+    return s ?? undefined
+  }
   return sessions.get(id)
 }
 
-export function setSession(session: Session): void {
-  sessions.set(session.id, session)
+export async function setSession(session: Session): Promise<void> {
+  if (kvAvailable()) {
+    await kv.set(kvKey(session.id), session)
+  } else {
+    sessions.set(session.id, session)
+  }
 }
 
-export function claimPerson(sessionId: string, personId: string): { ok: true } | { ok: false; reason: string } {
-  const session = sessions.get(sessionId)
+export async function claimPerson(
+  sessionId: string,
+  personId: string,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const session = await getSession(sessionId)
   if (!session) return { ok: false, reason: "NOT_FOUND" }
   const person = session.people.find((p) => p.id === personId)
   if (!person) return { ok: false, reason: "PERSON_NOT_FOUND" }
@@ -78,12 +110,12 @@ export function claimPerson(sessionId: string, personId: string): { ok: true } |
     session.isDrawComplete = assignments.length > 0
   }
 
-  sessions.set(sessionId, session)
+  await setSession(session)
   return { ok: true }
 }
 
-export function getReceiverFor(sessionId: string, giverId: string): { receiverId: string } | null {
-  const session = sessions.get(sessionId)
+export async function getReceiverFor(sessionId: string, giverId: string): Promise<{ receiverId: string } | null> {
+  const session = await getSession(sessionId)
   if (!session || !session.isDrawComplete) return null
   const a = session.assignments.find((x) => x.giverId === giverId)
   return a ? { receiverId: a.receiverId } : null
