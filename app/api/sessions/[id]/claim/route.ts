@@ -3,11 +3,12 @@ import { claimPerson } from "@/lib/store"
 
 export const dynamic = "force-dynamic"
 
-export async function POST(req: NextRequest, ctx?: { params?: { id?: string } }) {
+export async function POST(req: NextRequest) {
   try {
     const { personId } = (await req.json()) as { personId?: string }
     if (!personId) return NextResponse.json({ error: "personId required" }, { status: 400 })
-    const id = ctx?.params?.id ?? new URL(req.url).pathname.split("/").slice(-2, -1)[0] ?? ""
+    const parts = new URL(req.url).pathname.split("/").filter(Boolean)
+    const id = parts[parts.length - 2] ?? ""
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 })
     const result = await claimPerson(id, personId)
     if (!result.ok) {

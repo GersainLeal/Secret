@@ -3,11 +3,12 @@ import { getReceiverFor, getSession } from "@/lib/store"
 
 export const dynamic = "force-dynamic"
 
-export async function GET(req: NextRequest, ctx?: { params?: { id?: string } }) {
+export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const personId = searchParams.get("personId")
   if (!personId) return NextResponse.json({ error: "personId required" }, { status: 400 })
-  const id = ctx?.params?.id ?? new URL(req.url).pathname.split("/").slice(-2, -1)[0] ?? ""
+  const parts = new URL(req.url).pathname.split("/").filter(Boolean)
+  const id = parts[parts.length - 2] ?? ""
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 })
   const session = await getSession(id)
   if (!session) return NextResponse.json({ error: "Not Found" }, { status: 404 })

@@ -5,8 +5,9 @@ import { getSession } from "@/lib/store"
 export const dynamic = "force-dynamic"
 
 // Fetch public session state
-export async function GET(req: NextRequest, ctx?: { params?: { id?: string } }) {
-  const id = ctx?.params?.id ?? new URL(req.url).pathname.split("/").pop() ?? ""
+export async function GET(req: NextRequest) {
+  const parts = new URL(req.url).pathname.split("/").filter(Boolean)
+  const id = parts[parts.length - 1] ?? ""
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 })
   const session = await getSession(id)
   if (!session) return NextResponse.json({ error: "Not Found" }, { status: 404 })

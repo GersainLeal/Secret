@@ -4,6 +4,10 @@
 Este proyecto es una app de Next.js (App Router) con rutas de API en `app/api/*`.
 La forma más fácil y gratuita de hospedarlo es con Vercel (plan Hobby $0), que soporta Next.js nativamente, incluidas Server Components y Serverless Functions.
 
+## Desarrollo en Windows (pnpm)
+
+En este proyecto, Turbopack puede fallar en Windows cuando la ruta del proyecto contiene espacios (por ejemplo, `Proyecto AS`). Para evitarlo, la tarea de desarrollo usa Webpack por defecto.
+
 ## Opción recomendada: Vercel (gratis)
 
 ### Requisitos
@@ -80,6 +84,30 @@ pnpm install
 pnpm dev   # iniciar en http://localhost:3000
 pnpm build # compilar para producción
 pnpm start # ejecutar build localmente
+```
+
+## Instrucciones para desarrollo en Windows
+
+- Iniciar en desarrollo (Webpack):
+
+   PowerShell
+   ```powershell
+   pnpm run dev
+   ```
+
+- Intentar con Turbopack (opcional):
+
+   ```powershell
+   pnpm run dev:turbo
+   ```
+
+- Compilar para producción (Webpack):
+
+   ```powershell
+   pnpm run build
+   ```
+
+Si deseas usar Turbopack siempre, mueve el proyecto a una ruta sin espacios o mantén `pnpm run dev:turbo` y asegúrate de tener Next.js 16.0.1+.
 ```
 
 ---

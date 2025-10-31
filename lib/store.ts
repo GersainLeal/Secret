@@ -35,6 +35,15 @@ export type Session = {
   createdAt: number
 }
 
+// Config saved by the organizer (houses + people) to reuse later
+export type Config = {
+  id: string
+  name?: string
+  houses: House[]
+  people: Omit<Person, "claimed">[]
+  createdAt: number
+}
+
 // In-memory store (ephemeral). Used when KV is not configured.
 const globalAny = globalThis as unknown as { __amigoSessions?: Map<string, Session> }
 const sessions: Map<string, Session> = globalAny.__amigoSessions ?? new Map<string, Session>()
@@ -48,6 +57,7 @@ export function isKvConfigured(): boolean {
 }
 
 const kvKey = (id: string) => `session:${id}`
+const kvConfigKey = (id: string) => `config:${id}`
 
 export function generateSessionId(): string {
   // 12 bytes -> 24 hex chars
@@ -74,6 +84,36 @@ export async function createSession(input: { houses: House[]; people: Omit<Perso
     sessions.set(id, session)
   }
   return session
+}
+
+// --- Config persistence ---
+export async function createConfig(input: { name?: string; houses: House[]; people: { id: string; name: string; houseId: string }[] }): Promise<Config> {
+  const id = generateSessionId()
+  const cfg: Config = {
+    id,
+    name: input.name?.trim() || undefined,
+    houses: input.houses,
+    people: input.people,
+    createdAt: Date.now(),
+  }
+  if (isKvConfigured()) {
+    await kv.set(kvConfigKey(id), cfg)
+  } else {
+    // keep a tiny in-memory cache for local dev
+    const g = globalThis as unknown as { __amigoConfigs?: Map<string, Config> }
+    if (!g.__amigoConfigs) g.__amigoConfigs = new Map()
+    g.__amigoConfigs.set(id, cfg)
+  }
+  return cfg
+}
+
+export async function getConfig(id: string): Promise<Config | undefined> {
+  if (isKvConfigured()) {
+    const c = (await kv.get(kvConfigKey(id))) as Config | null
+    return c ?? undefined
+  }
+  const g = globalThis as unknown as { __amigoConfigs?: Map<string, Config> }
+  return g.__amigoConfigs?.get(id)
 }
 
 export async function getSession(id: string): Promise<Session | undefined> {
