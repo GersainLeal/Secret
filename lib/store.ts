@@ -40,7 +40,7 @@ const globalAny = globalThis as unknown as { __amigoSessions?: Map<string, Sessi
 const sessions: Map<string, Session> = globalAny.__amigoSessions ?? new Map<string, Session>()
 globalAny.__amigoSessions = sessions
 
-function kvAvailable(): boolean {
+export function isKvConfigured(): boolean {
   // Vercel KV uses KV_REST_API_URL/KV_REST_API_TOKEN or KV_URL; Upstash naming also supported
   return Boolean(
     kv && (process.env.KV_REST_API_URL || process.env.KV_URL || process.env.UPSTASH_REDIS_REST_URL),
@@ -68,7 +68,7 @@ export async function createSession(input: { houses: House[]; people: Omit<Perso
     isDrawComplete: precomputed.length > 0,
     createdAt: Date.now(),
   }
-  if (kvAvailable()) {
+  if (isKvConfigured()) {
     await kv.set(kvKey(id), session)
   } else {
     sessions.set(id, session)
@@ -77,7 +77,7 @@ export async function createSession(input: { houses: House[]; people: Omit<Perso
 }
 
 export async function getSession(id: string): Promise<Session | undefined> {
-  if (kvAvailable()) {
+  if (isKvConfigured()) {
     const s = (await kv.get(kvKey(id))) as Session | null
     return s ?? undefined
   }
@@ -85,7 +85,7 @@ export async function getSession(id: string): Promise<Session | undefined> {
 }
 
 export async function setSession(session: Session): Promise<void> {
-  if (kvAvailable()) {
+  if (isKvConfigured()) {
     await kv.set(kvKey(session.id), session)
   } else {
     sessions.set(session.id, session)
